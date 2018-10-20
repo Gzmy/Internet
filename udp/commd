@@ -1,0 +1,1 @@
+同一网段远程拷贝: scp udp_client root@ip地址:/home
