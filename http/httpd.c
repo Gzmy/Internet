@@ -14,6 +14,7 @@
 
 #define MAX 1024
 #define HOME_PAGE "index.html"
+#define PAGE_404 "wwwroot/404.html" 
 
 static void usage(const char *proc)
 {
@@ -79,11 +80,43 @@ static void clearHeaer(int sock) //清理头部
 	}while(strcmp("\n", line));
 }
 
+void show_404(int sock)
+{
+	char line[MAX];
+	struct stat st;
+	sprintf(line, "HTTP/1.0 404 NOT FOUND\r\n");
+	send(sock, line, strlen(line), 0);
+	sprintf(line, "Content-type: text/html;charset=ISO-8859-1\r\n");
+	send(sock, line, strlen(line), 0);
+	sprintf(line, "\r\n");
+	send(sock, line, strlen(line), 0);
+
+	int fd = open(PAGE_404, O_RDONLY);
+
+	stat(PAGE_404, &st);
+	sendfile(sock, fd, NULL, st.st_size);
+	close(fd);
+}
+
 static void echoErrMsg(int sock, int status_code)
 {
 	switch(status_code){
+		case 301:
+			break;
+		case 302:
+			break;
+		case 307:
+			break;
+		case 400:
+			break;
+		case 403:
+			break;
 		case 404:
-			//show_404(sock);
+			show_404(sock);
+			break;
+		case 500:
+			break;
+		case 503:
 			break;
 		default:
 			break;
@@ -110,7 +143,7 @@ int exec_cgi(int sock, char *method, char *path, char *query_string)
 			}
 		}while(strcmp("\n", line));
 		if(content_length == -1){
-			return 404;
+			return 400;
 		}
 	}
 
@@ -123,16 +156,16 @@ int exec_cgi(int sock, char *method, char *path, char *query_string)
 
 	pid_t id = fork();
 	if(id < 0){
-		return 404;
+		return 500;
 	}
 	else if(id == 0){
 		close(input[1]);
 		close(output[0]);
 
-		dup2(output[1], 1);
 		dup2(input[0], 0);
+		dup2(output[1], 1);
 
-		sprintf(method_env, "METHODE=%s", method);
+		sprintf(method_env, "METHOD=%s", method);
 		putenv(method_env);
 		if(strcasecmp(method, "GET") == 0){
 			sprintf(query_string_env, "QUERY_STRING=%s", query_string);
@@ -178,7 +211,7 @@ int exec_cgi(int sock, char *method, char *path, char *query_string)
 	return 200;
 }
 
-int echo_www(int sock, char *path, int size) //只处理一行,此时无正文
+int echo_www(int sock, char *path, int size)
 {
 	char line[MAX];
 	clearHeaer(sock);
@@ -195,10 +228,12 @@ int echo_www(int sock, char *path, int size) //只处理一行,此时无正文
 	sprintf(line, "\r\n");
 	send(sock, line, strlen(line), 0);
 
-	//发送文件内容  sendfile, 拷贝两个文件描述符的内容
+	//发送正文,文件内容  sendfile, 拷贝两个文件描述符的内容
 	sendfile(sock, fd, NULL, size);
 
 	close(fd);
+
+	return 200;
 }
 
 void *handlerRequest(void *arg) //请求行
@@ -236,7 +271,7 @@ void *handlerRequest(void *arg) //请求行
 	printf("method:%s, url:%s\n", method, url);
 
 	//忽略大小写比较
-	//传参模式改为cgi
+	//有传参,模式改为cgi
 	//get 有传参,是通过url传参
 	//post 传参是将参数填充至报文的正文部分, 传敏感数据时使用
 	if(strcasecmp(method, "GET") == 0){
@@ -245,7 +280,7 @@ void *handlerRequest(void *arg) //请求行
 		cgi = 1;
 	}
 	else{ //method error
-		status_code = 404;
+		status_code = 400;
 		clearHeaer(sock); //清理头部
 		goto end;
 	}
@@ -297,6 +332,15 @@ void *handlerRequest(void *arg) //请求行
 	
 
 end:
+	//status_code 204:请求资源存在,但是为空(成功)
+	//			  206:局部请求
+	//			  301:永久性重定向
+	//			  302:临时性重定向
+	//			  400:请求报文中存在语法错误
+	//			  403:请求资源被服务器拒绝
+	//			  404:请求资源不存在(error)
+	//			  500:服务器执行发生错误
+	//			  503:服务器处于超负载或停机维护状态
 	if(status_code != 200){
 		echoErrMsg(sock, status_code);
 	}
