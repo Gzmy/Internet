@@ -23,13 +23,14 @@ clean:
 
 .PHONY:output
 output:
-	mkdir -p output/wwwroot/imgs
+	mkdir -p output/wwwroot
 	mkdir -p output/wwwroot/cgi
 	mkdir -p output/lib
 	cp httpd output
 	cp -rf lib/lib/* output/lib
 	cp wwwroot/*.html output/wwwroot
-	cp wwwroot/imgs/* output/wwwroot/imgs
+	cp wwwroot/css -r output/wwwroot
+	cp wwwroot/js -r output/wwwroot
 	cp wwwroot/cgi/math_cgi output/wwwroot/cgi
 	cp sql_connect/insert_cgi output/wwwroot/cgi
 	cp sql_connect/select_cgi output/wwwroot/cgi
@@ -42,3 +43,4 @@ output:
 
 
 
+#cp wwwroot/imgs/* output/wwwroot/imgs

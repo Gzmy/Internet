@@ -1,7 +1,9 @@
 #pragma once
 
 #include <iostream>
+#include <unistd.h>
 #include <mysql.h>
+#include <assert.h>
 #include <string>
 using namespace std;
 
