@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "comm.h"
 
 static unsigned char FromHex(unsigned char x)

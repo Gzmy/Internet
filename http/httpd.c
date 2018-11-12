@@ -52,14 +52,14 @@ static int startup(int port)
 
 static int getLine(int sock, char line[], int len)
 {
-	char c = ' ';
+	char c = 'a';
 	int i = 0;
 	while(c != '\n' && i < len-1){
 		ssize_t s = recv(sock, &c, 1, 0);
 		if(c == '\r'){
 			recv(sock, &c, 1, MSG_PEEK); //窥探功能
 			if(c == '\n'){
-				recv(sock, &c, 1, 0);
+				recv(sock, &c, 1, 0); //覆盖 \r 为 \n
 			}else{
 				c = '\n';
 			}
@@ -241,8 +241,8 @@ void *handlerRequest(void *arg) //请求行
 	int sock = (int)arg;
 	int status_code = 200;
 	char line[MAX];
-	char method[MAX/16];
-	char url[MAX];
+	char method[MAX/16] = {0};
+	char url[MAX] = {0};
 	char path[MAX];
 	int cgi = 0;
 	char *query_string = NULL;
@@ -252,8 +252,10 @@ void *handlerRequest(void *arg) //请求行
 
 	int i = 0;
 	int j = 0;
-	while(i < sizeof(method)-1 && j < sizeof(line) && !isspace(line[j])){
-		method[i++] = line[j++];
+	while(i < sizeof(method)-1 && j < sizeof(line) && \
+          !isspace(line[j])){
+		method[i] = line[j];
+        i++, j++;
 	}
 	method[i] = '\0';
 
@@ -263,12 +265,11 @@ void *handlerRequest(void *arg) //请求行
 
 	i = 0;
 	while(i < sizeof(url)-1 && j < sizeof(line) && !isspace(line[j])){
-		url[i++] = line[j++];
+		url[i] = line[j];
+        i++, j++;
 	}
-
-	url[i] = '\0'; //若有问题,把i换为j试试
-
-	printf("method:%s, url:%s\n", method, url);
+	url[i] = '\0'; 
+	printf("method: %s, url: %s\n", method, url);
 
 	//忽略大小写比较
 	//有传参,模式改为cgi
