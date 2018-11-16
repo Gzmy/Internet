@@ -52,7 +52,7 @@ static int startup(int port)
 
 static int getLine(int sock, char line[], int len)
 {
-	char c = 'a';
+	char c = '\0';
 	int i = 0;
 	while(c != '\n' && i < len-1){
 		ssize_t s = recv(sock, &c, 1, 0);
