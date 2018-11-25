@@ -16,7 +16,7 @@ void *sendMsg(void *arg)
 {
     server *s = (server*)arg;
     for(;;){
-        sleep(1);
+        s->broadcastData(); //广播
     }
 }
 

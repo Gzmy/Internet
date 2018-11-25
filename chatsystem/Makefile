@@ -2,14 +2,20 @@ ROOT_PATH=$(shell pwd)
 CLIENT=$(ROOT_PATH)/client
 SERVER=$(ROOT_PATH)/server
 DATAPOOL=$(ROOT_PATH)/data_pool
+COMM=$(ROOT_PATH)/comm
+LIB=$(ROOT_PATH)/lib
+WINDOW=$(ROOT_PATH)/window
 
-SER_SRC=$(shell ls $(SERVER)/*.cpp $(DATAPOOL)/*.cpp | sed 's/\/.*\///g')
-CLI_SRC=$(shell ls $(CLIENT)/*.cpp | sed 's/\/.*\///g')
+INCLUDE=-I$(DATAPOOL) -I$(COMM) -I$(LIB)/include -I$(WINDOW)
+JSONLIB=-L$(LIB)/lib
+
+SER_SRC=$(shell ls $(SERVER)/*.cpp $(DATAPOOL)/*.cpp $(COMM)/*.cpp | sed 's/\/.*\///g')
+CLI_SRC=$(shell ls $(CLIENT)/*.cpp $(COMM)/*.cpp $(WINDOW)/*.cpp | sed 's/\/.*\///g')
 
 SER_OBJ=$(shell echo $(SER_SRC) | sed 's/.cpp/.o/g')
 CLI_OBJ=$(shell echo $(CLI_SRC) | sed 's/.cpp/.o/g')
 
-LDFLAGS=-lpthread
+LDFLAGS=-lpthread -ljson 
 
 ser=chatSystem
 cli=chatClient
@@ -19,15 +25,19 @@ cc=g++
 all:$(ser) $(cli)
 
 $(ser):$(SER_OBJ)
-	$(cc) -o $@ $^ $(LDFLAGS)
+	$(cc) -o $@ $^ $(LDFLAGS) $(JSONLIB) 
 $(cli):$(CLI_OBJ)
-	$(cc) -o $@ $^
+	$(cc) -o $@ $^ $(LDFLAGS) $(JSONLIB) -lncurses
 %.o:$(CLIENT)/%.cpp
-	$(cc) -c $<
+	$(cc) -c $< $(INCLUDE)
 %.o:$(SERVER)/%.cpp
-	$(cc) -c $<
+	$(cc) -c $< $(INCLUDE)
 %.o:$(DATAPOOL)/%.cpp
 	$(cc) -c $<
+%.o:$(COMM)/%.cpp
+	$(cc) -c $< $(INCLUDE)
+%.o:$(WINDOW)/%.cpp
+	$(cc) -c $< $(INCLUDE)
 
 .PHONY:clean
 clean:

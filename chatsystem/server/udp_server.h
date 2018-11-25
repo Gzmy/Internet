@@ -8,7 +8,9 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <netinet/in.h>
+#include <map>
 #include "data_pool.h"
+#include "data.h"
 using namespace std;
 
 #define MAX 1024
@@ -26,4 +28,5 @@ private:
     int sock;
     int port;
     dataPool pool;
+    map<uint32_t, struct sockaddr_in> online;
 };

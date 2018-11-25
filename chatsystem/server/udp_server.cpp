@@ -33,6 +33,16 @@ void server::recvData(string &out)
         buf[s] = 0;
         out = buf;
         pool.putData(out);
+        data d;
+        d.unserialize(out); //反序列化  1->4
+        if(d.command == "quit"){
+            map<uint32_t, struct sockaddr_in>::iterator iter = online.find(peer.sin_addr.s_addr);
+            if(iter != online.end()){
+                online.erase(iter->first);
+            }
+        }else{
+            online.insert(pair<uint32_t, struct sockaddr_in>(peer.sin_addr.s_addr, peer));
+        }
     }
 }
 
@@ -41,12 +51,14 @@ void server::sendData(const string &in, struct sockaddr_in &peer)
     sendto(sock, in.c_str(), in.size(), 0, (struct sockaddr*)&peer, sizeof(peer));
 }
 
-void server::broadcastData()
+void server::broadcastData() //广播
 {
     string str;
     pool.getData(str);
-    //server::sendData(str, struct sockaddr_in &peer);
-
+    map<uint32_t, struct sockaddr_in>::iterator iter = online.begin();
+    for(; iter != online.end(); iter++){
+        sendData(str, iter->second);
+    }
 }
 
 server::~server()
