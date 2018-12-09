@@ -223,8 +223,16 @@ int echo_www(int sock, char *path, int size)
 
 	sprintf(line, "HTTP/1.0 200 OK\r\n");
 	send(sock, line, strlen(line), 0);
-	sprintf(line, "Content-type: text/html;charset=ISO-8859-1\r\n");
+	
+	if(strcasecmp("html", path+strlen(path)-4) == 0){
+	    sprintf(line, "Content-type: text/html;charset=utf-8\r\n");
+    	}else if(strcasecmp("js", path+strlen(path)-2) == 0){
+	    sprintf(line, "Content-type: application/x-javascript;charset=utf-8\r\n");
+	}else if(strcasecmp("css", path+strlen(path)-3) == 0){
+	    sprintf(line, "Content-type: text/css;charset=utf-8\r\n");
+	}
 	send(sock, line, strlen(line), 0);
+	
 	sprintf(line, "\r\n");
 	send(sock, line, strlen(line), 0);
 
