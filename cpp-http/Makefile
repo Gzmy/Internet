@@ -4,7 +4,7 @@ LDFLAGS=-lpthread
 
 
 HttpdServer:HttpdServer.cc
-	$(cc) -o $@ $^ $(LDFLAGS)
+	$(cc) -o  $@ $^ $(LDFLAGS) -std=c++11
 
 .PHONY: clean
 clean:
