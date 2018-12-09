@@ -4,7 +4,7 @@ MYSQL *connectMysql()
 {
     MYSQL *myfd = mysql_init(NULL);
 
-    if(mysql_real_connect(myfd, "127.0.0.1", "root", "zmy19980520", "web", 3306, NULL, 0) == NULL){
+    if(mysql_real_connect(myfd, "localhost", "用户名", "密码", "数据库名", 3306, NULL, 0) == NULL){
         cerr << "connect error" << endl;
     }else{
         cout << "connect success" << endl;
