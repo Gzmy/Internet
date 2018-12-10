@@ -86,7 +86,7 @@ void show_404(int sock)
 	struct stat st;
 	sprintf(line, "HTTP/1.0 404 NOT FOUND\r\n");
 	send(sock, line, strlen(line), 0);
-	sprintf(line, "Content-type: text/html;charset=ISO-8859-1\r\n");
+	sprintf(line, "Content-type: text/html;charset=uft-8\r\n");
 	send(sock, line, strlen(line), 0);
 	sprintf(line, "\r\n");
 	send(sock, line, strlen(line), 0);
@@ -185,7 +185,7 @@ int exec_cgi(int sock, char *method, char *path, char *query_string)
 
 		sprintf(line, "HTTP/1.0 200 OK\r\n");
 		send(sock, line, strlen(line), 0);
-		sprintf(line, "Content-type: text/html;charset=ISO-8859-1\r\n");
+		sprintf(line, "Content-type: text/html;charset=utf-8\r\n");
 		send(sock, line, strlen(line), 0);
 		sprintf(line, "\r\n");
 		send(sock, line, strlen(line), 0);
