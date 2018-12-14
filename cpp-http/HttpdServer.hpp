@@ -66,8 +66,8 @@ public:
         port = -1;
     }
 private:
-    int listen_sock;
     int port;
+    int listen_sock;
 };
 
 #endif

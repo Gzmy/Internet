@@ -10,9 +10,10 @@
 #include <unordered_map>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
+#include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/sendfile.h>
 #include <arpa/inet.h>
@@ -120,10 +121,9 @@ public:
 
             std::string sub_string_ = rq_head.substr(start_, pos_ - start_);
             if(!sub_string_.empty()){
-                LOG(INFO, "substr is not empty");
+                //LOG(INFO, "substr is not empty");
                 ProtocolUtil::MakeKV(head_kv, sub_string_);
             }else{
-                LOG(INFO, "substr is  empty");
                 break;
             }
             start_ = pos_ + 1;
@@ -209,6 +209,11 @@ public:
     int GetResourceSize()
     {
         return resource_size;
+    }
+
+    void SetResourceSize(int rs_)
+    {
+        resource_size = rs_;
     }
 
     ~Request()
@@ -338,17 +343,18 @@ public:
 
     void SendResponse(Response *&rsp_, Request *&rq_, bool cgi_)
     {
+        std::string &rsp_line_ = rsp_->rsp_line;
+        std::string &rsp_head_ = rsp_->rsp_head;
+        std::string &blank_ = rsp_->blank;
+        send(sock, rsp_line_.c_str(), rsp_line_.size(), 0);
+        send(sock, rsp_head_.c_str(), rsp_head_.size(), 0);
+        send(sock, blank_.c_str(), blank_.size(), 0);
+
         if(cgi_){
-
+            std::string &rsp_text_ = rsp_->rsp_text;
+            send(sock, rsp_text_.c_str(), rsp_text_.size(), 0);
         }else{
-            std::string &rsp_line_ = rsp_->rsp_line;
-            std::string &rsp_head_ = rsp_->rsp_head;
-            std::string &blank_ = rsp_->blank;
             int &fd = rsp_->fd;
-
-            send(sock, rsp_line_.c_str(), rsp_line_.size(), 0);
-            send(sock, rsp_head_.c_str(), rsp_head_.size(), 0);
-            send(sock, blank_.c_str(), blank_.size(), 0);
             sendfile(sock, fd, NULL, rq_->GetResourceSize());
         }
     }
@@ -380,6 +386,8 @@ public:
         int &code_ = rsp_->code;
         int input[2];
         int output[2];
+        std::string &param_ = rq_->GetParam();
+        std::string &rsp_text_ = rsp_->rsp_text;
 
         //站在子进程角度，子进程通过input读
         pipe(input);
@@ -394,9 +402,42 @@ public:
         else if(id == 0){ //child
             close(input[1]);
             close(output[0]);
+
+            dup2(input[0], 0); //进程替换之后数组数据被替换，
+            dup2(output[1], 1);
+
+            std::string cl_env_ = "Content-Length=";
+            const std::string &path_ = rq_->GetPath();
+            cl_env_ += ProtocolUtil::IntToString(param_.size());
+            putenv((char*)cl_env_.c_str());
+
+            execl(path_.c_str(), path_.c_str(), NULL); //进程替换
+            exit(1);
         }else{ //father
             close(input[0]);
             close(output[1]);
+
+            size_t size_ = param_.size();
+            size_t total_ = 0;
+            size_t curr_ = 0;
+            const char *p = param_.c_str();
+            while( total_ < size_ && (curr_ = write(input[1], p + total_, size_-total_)) > 0 ){
+                total_ += curr_;
+            }
+
+            char c;
+            while(read(output[0], &c, 1) > 0){
+                rsp_text_.push_back(c);
+            }
+            waitpid(id, NULL, 0);
+
+            rsp_->MakeStatusLine();
+            rq_->SetResourceSize(rsp_text_.size());
+            rsp_->MakeResponseHead(rq_);
+            conn_->SendResponse(rsp_, rq_, true);
+
+            close(input[1]);
+            close(output[0]);
         }
     }
 
@@ -442,7 +483,7 @@ public:
             goto end;
         }
 
-        if(rq_->IsNeedRecvText()){
+        if(rq_->IsNeedRecvText()){ //需要继续读，是POST请求
             conn_->RecvRequestText(rq_->rq_text, rq_->GetContentLength(), rq_->GetParam());
         }
         //request recv done!
