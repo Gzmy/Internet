@@ -3,7 +3,7 @@ cc=g++
 LDFLAGS=-lpthread
 
 .PHONY:all
-all:$(bin) cgi
+all:$(bin) cgi output
 
 $(bin):HttpdServer.cc
 	$(cc) -o  $@ $^ $(LDFLAGS) -std=c++11
@@ -15,4 +15,12 @@ cgi:
 
 .PHONY: clean
 clean:
-	rm -f $(bin) Cal
+	rm -rf $(bin) Cal output
+
+.PHONY:output
+output:
+	mkdir output
+	cp $(bin) output
+	cp -rf wwwroot output
+	cp Cal output/wwwroot
+	cp start.sh output

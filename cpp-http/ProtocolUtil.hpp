@@ -20,11 +20,14 @@
 #include <netinet/in.h>
 #include "Log.hpp"
 
-#define NOT_FOUND 404
 #define OK 200
+#define NOT_FOUND 404
+#define BAD_REQUEST 400
+#define SERVER_ERROR 500
 
 #define WEB_ROOT "wwwroot"
 #define HOME_PAGE "index.html"
+#define PAGE_404 "404.html"
 
 #define HTTP_VERSION "HTTP/1.0"
 
@@ -64,10 +67,14 @@ public:
         switch(code_){
         case 200:
             return "OK";
+        case 400:
+            return "Bad Request";
         case 404:
-            return "NOT_FOUND";
+            return "Not Found";
+        case 500:
+            return "Internal Server Error";
         default:
-            return "UNKNOW";
+            return "Unknow";
         }
     }
     
@@ -141,21 +148,6 @@ public:
         return content_length;
     }
 
-    std::string &GetParam()
-    {
-        return param;
-    }
-
-    std::string &GetSuffix()
-    {
-        return resource_suffix;
-    }
-
-    std::string &GetPath()
-    {
-        return path;
-    }
-
     bool IsMethodLegal()
     {
         if(strcasecmp(method.c_str(), "GET") == 0 || (cgi = (strcasecmp(method.c_str(), "POST") == 0))){
@@ -204,6 +196,31 @@ public:
     bool IsCgi()
     {
         return cgi;
+    }
+
+    std::string &GetParam()
+    {
+        return param;
+    }
+
+    std::string &GetSuffix()
+    {
+        return resource_suffix;
+    }
+
+    void SetSuffix(std::string stuffix_)
+    {
+        resource_suffix = stuffix_;
+    }
+
+    std::string &GetPath()
+    {
+        return path;
+    }
+
+    void SetPath(std::string &path_)
+    {
+        path = path_;
     }
 
     int GetResourceSize()
@@ -396,7 +413,7 @@ public:
         pid_t id = fork();
         if(id < 0){
             LOG(ERROR, "fork error");
-            code_ = NOT_FOUND;
+            code_ = SERVER_ERROR;
             return;
         }
         else if(id == 0){ //child
@@ -450,10 +467,39 @@ public:
         }
     }
     
-    static void *HandlerRequest(void *arg_)
+    static void Process404(Connect *&conn_, Request *&rq_, Response *&rsp_)
     {
-        int sock_ = *(int*)arg_;
-        delete (int*)arg_;
+        std::string path_ = WEB_ROOT;
+        path_ += "/";
+        path_ += PAGE_404;
+        struct stat st;
+        stat(path_.c_str(), &st);
+
+        rq_->SetResourceSize(st.st_size);
+        rq_->SetSuffix(".html");
+        rq_->SetPath(path_);
+
+        ProcessNonCgi(conn_, rq_, rsp_);
+    }
+
+    static void HadnlerError(Connect *&conn_, Request *&rq_, Response *&rsp_) //处理异常
+    {
+        int &code_ = rsp_->code;
+        switch(code_){
+        case 400:
+            break;
+        case 404:
+            Process404(conn_, rq_, rsp_);
+            break;
+        case 500:
+            break;
+        case 503:
+            break;
+        }
+    }
+
+    static int HandlerRequest(int sock_)
+    {
         Connect *conn_ = new Connect(sock_);
         Request *rq_ = new Request();
         Response *rsp_ = new Response();
@@ -463,12 +509,14 @@ public:
         conn_->RecvOneLine(rq_->rq_line); //读取一行
         rq_->RequestLineParse(); //解析请求行,分离,方法,uri和版本
         if(!rq_->IsMethodLegal()){ //判断方法是否合法
-            code_ = NOT_FOUND;
+            conn_->RecvRequestHead(rq_->rq_head);
+            code_ = BAD_REQUEST;
             goto end;
         }
 
         rq_->UriParse(); //解析uri
         if(!rq_->IsPathLegal()){ //访问资源不存在
+            conn_->RecvRequestHead(rq_->rq_head);
             code_ = NOT_FOUND;
             goto end;
         }
@@ -479,7 +527,7 @@ public:
         if(rq_->RequestHeadParse()){ //解析报头
             LOG(INFO, "paser head done");
         }else{
-            code_ = NOT_FOUND;
+            code_ = BAD_REQUEST;
             goto end;
         }
 
@@ -491,11 +539,12 @@ public:
         ProcessResponse(conn_, rq_, rsp_); //执行响应
 end:
         if(code_ != OK){
-            //HadnlerError(sock_); //处理异常
+            HadnlerError(conn_, rq_, rsp_); //处理异常
         }
         delete conn_;
         delete rq_;
         delete rsp_;
+        return code_;
     }
 };
 
